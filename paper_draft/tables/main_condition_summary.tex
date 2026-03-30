@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+\textbf{Source} & \textbf{Condition} & \textbf{Word detector} $\downarrow$ & \textbf{Stylometric detector} $\downarrow$ & \textbf{Mean words} & \textbf{Mean TTR} \\
+\midrule
+Fresh & Baseline & 0.6288 & 0.5902 & 163.7 & 0.6244 \\
+Fresh & \oneshot & \textbf{0.5835} & \textbf{0.5296} & 147.3 & \textbf{0.6864} \\
+Fresh & \iterative (final) & 0.5883 & 0.5644 & 146.9 & 0.6608 \\
+Fresh & Human reference & 0.5613 & 0.4234 & 69.0 & 0.7946 \\
+\midrule
+External & Original external & \textbf{0.4926} & \textbf{0.3930} & 527.3 & 0.5049 \\
+External & \oneshot & 0.5363 & 0.4425 & 184.2 & \textbf{0.6783} \\
+External & \iterative (final) & 0.5389 & 0.5085 & 187.2 & 0.6707 \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Condition-level summary from 30 paired items (15 fresh, 15 external). Lower detector probability indicates more detector evasion. Best values within each source block for detector scores are in \textbf{bold}.}
+\label{tab:condition_summary}
+\end{table*}

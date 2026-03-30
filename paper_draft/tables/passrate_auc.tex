@@ -1,0 +1,17 @@
+\begin{table*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+\textbf{Metric} & \textbf{Detector} & \textbf{Fresh baseline} & \textbf{Fresh one-shot} & \textbf{Fresh iterative} & \textbf{External one-shot / iterative} \\
+\midrule
+Pass rate @ 0.5 $\uparrow$ & \worddet & 0.067 & 0.333 & 0.333 & 0.333 / 0.333 \\
+Pass rate @ 0.5 $\uparrow$ & \styledet & 0.333 & \textbf{0.467} & 0.333 & \textbf{0.600} / 0.467 \\
+AUC vs human $\uparrow$ & \worddet & 0.627 & \textbf{0.520} & 0.560 & -- \\
+AUC vs human $\uparrow$ & \styledet & 0.711 & \textbf{0.662} & 0.698 & -- \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Decision-level effects. For pass rate, higher means more texts are classified as non-AI at threshold 0.5. For AUC versus human references, lower values indicate weaker separation; one-shot has lower AUC than iterative for both detectors.}
+\label{tab:pass_auc}
+\end{table*}

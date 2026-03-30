@@ -1,0 +1,17 @@
+source_type,detector,round,mean_ai_prob,std_ai_prob
+fresh_model_generation,word_ai_prob,1,0.5822085855481298,0.14239989954274052
+fresh_model_generation,word_ai_prob,2,0.5948494946809223,0.15268824402475992
+fresh_model_generation,word_ai_prob,3,0.617031400929708,0.14611103476008241
+fresh_model_generation,word_ai_prob,4,0.5882805688798555,0.1581841192407109
+fresh_model_generation,stylometric_ai_prob,1,0.5189208333257322,0.19148357428782142
+fresh_model_generation,stylometric_ai_prob,2,0.5773761242715227,0.16399167994546873
+fresh_model_generation,stylometric_ai_prob,3,0.5822238038506152,0.16605028063396432
+fresh_model_generation,stylometric_ai_prob,4,0.564373809195585,0.16898818160319132
+external_ai_text,word_ai_prob,1,0.5173116833026618,0.09479657105791621
+external_ai_text,word_ai_prob,2,0.5376395786255531,0.10575216127975773
+external_ai_text,word_ai_prob,3,0.5634560473736859,0.09640183462763914
+external_ai_text,word_ai_prob,4,0.5388707449268196,0.11958467485746814
+external_ai_text,stylometric_ai_prob,1,0.40330347200427585,0.12506265328757366
+external_ai_text,stylometric_ai_prob,2,0.5153250080996378,0.1516843635456844
+external_ai_text,stylometric_ai_prob,3,0.47951558938174005,0.13915034989470687
+external_ai_text,stylometric_ai_prob,4,0.5085161928250463,0.16041412491439125

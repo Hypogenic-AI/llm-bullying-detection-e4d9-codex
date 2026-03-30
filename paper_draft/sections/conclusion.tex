@@ -1,0 +1,8 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We studied whether iterative rejection feedback (``still too AI-sounding'') is a stronger detector-evasion strategy than a single one-shot rewrite instruction. Using real API generations, paired comparisons, two source settings, and two detector families, we find no iterative advantage in this run. All mean paired differences are in the unfavorable direction for iterative outputs, and one detector/source pair shows a significant post-correction degradation.
+
+The main takeaway is simple: iterative rejection is not a reliable shortcut to detector evasion. In our setting, one-shot rewriting is equal or better.
+
+Future work should replicate at larger scale with multiple seeds, include commercial detector APIs, enforce matched-length controls, and extend across additional model families and writing domains. These steps are necessary to separate robust interaction effects from detector-specific artifacts.

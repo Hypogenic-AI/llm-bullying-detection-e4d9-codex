@@ -1,0 +1,17 @@
+\begin{table*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llcccccc@{}}
+\toprule
+\textbf{Detector} & \textbf{Source} & \textbf{Mean diff} & \textbf{$p$ (t)} & \textbf{$p$ (FDR)} & \textbf{Cohen's $d$} & \textbf{95\% CI} & \textbf{Direction} \\
+\midrule
+\worddet & Fresh & +0.0048 & 0.7009 & 0.8645 & +0.101 & [-0.0181, 0.0281] & Worse \\
+\worddet & External & +0.0025 & 0.8645 & 0.8645 & +0.045 & [-0.0241, 0.0307] & Worse \\
+\styledet & Fresh & +0.0348 & 0.0414 & 0.0828 & +0.580 & [0.0063, 0.0645] & Worse \\
+\styledet & External & +0.0660 & 0.0110 & \textbf{0.0440} & +0.756 & [0.0241, 0.1088] & Worse \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Paired tests for \iterative final versus \oneshot (difference = iterative $-$ one-shot). Positive differences indicate that iterative rejection is more AI-like and therefore worse for evasion.}
+\label{tab:paired_tests}
+\end{table*}

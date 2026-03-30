@@ -1,0 +1,21 @@
+\section{Introduction}
+\label{sec:introduction}
+AI-text detectors now influence moderation, academic integrity workflows, and fraud screening decisions. Because these systems are used as practical filters, small prompt-level changes that shift detector scores can change real outcomes.
+
+\para{{\bf what is the concrete problem?}} Prior work shows that paraphrasing and prompt-based attacks can reduce detector performance \cite{krishna2023paraphrasing,lu2024guided,zhou2024humanizing}. However, one common real-world interaction has not been isolated cleanly: users repeatedly reject drafts as ``too AI-sounding'' and ask for another rewrite. Our main question is whether that rejection context is stronger than a single one-shot rewrite request.
+
+\para{{\bf what is missing in existing evidence?}} Existing studies often combine multiple moving parts such as detector-aware optimization, external paraphrasers, or handcrafted perturbation modules \cite{krishna2023paraphrasing,lu2024guided,zhou2024humanizing}. This makes it hard to identify whether iterative rejection itself provides a causal advantage over a simpler baseline.
+
+\para{{\bf what do we do?}} We run a paired, controlled experiment that holds source text and generator constant while varying only the interaction protocol: \oneshot versus four-round \iterative rejection. We evaluate both fresh model generations from \hcthree and externally sourced AI text from \ghostbuster to test context transfer. \Figref{fig:condition_comparison} previews the condition-level outcomes, and \figref{fig:trajectory} shows round-by-round dynamics.
+
+\para{{\bf what do we find?}} In this run, iterative rejection does not beat one-shot rewriting. All paired mean differences (iterative $-$ one-shot) are positive. The largest degradation appears on stylometric detection for external text (+0.0660, 95\% CI [0.0241, 0.1088], FDR-adjusted $p=0.0440$). Pass rates are unchanged on the word detector and decrease on the stylometric detector.
+
+Our contributions are:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item We propose a controlled protocol that isolates rejection-loop interaction effects from other attack components.
+    \item We conduct paired comparisons across fresh-generation and external-text settings with two independent detector families.
+    \item We complement mean-score analysis with pass rates, AUC-versus-human checks, effect sizes, and bootstrap confidence intervals.
+    \item We provide evidence that iterative rejection can be neutral or harmful for evasion, refining claims of universal iterative advantage.
+\end{itemize}
+
+\para{Paper organization.} \secref{sec:related_work} positions our setting in prior detector-evasion work. \secref{sec:methodology} details data, protocol, and analysis. \secref{sec:results} reports quantitative outcomes. \secref{sec:discussion} analyzes limitations and implications. \secref{sec:conclusion} concludes with next steps.

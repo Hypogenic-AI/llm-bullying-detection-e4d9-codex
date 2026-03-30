@@ -1,0 +1,44 @@
+\section{Results}
+\label{sec:results}
+
+\para{Main outcome.} Iterative rejection does not improve detector evasion over one-shot rewriting in this run. Across all detector-source pairs, mean paired differences are positive (iterative minus one-shot), so iterative outputs are more AI-like on average.
+
+\input{tables/main_condition_summary}
+\input{tables/paired_tests}
+\input{tables/passrate_auc}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/condition_comparison.png}
+    \caption{Condition-level detector probabilities across source settings and detectors. Lower values indicate more effective evasion. \oneshot is lower than \iterative in all detector-source pairs.}
+    \label{fig:condition_comparison}
+\end{figure*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/iterative_trajectory.png}
+    \caption{Round-by-round trajectory under iterative rejection. Curves are non-monotonic and do not converge to lower final AI probability than \oneshot.}
+    \label{fig:trajectory}
+\end{figure*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/pass_rates.png}
+    \caption{Pass rates at threshold 0.5. On the stylometric detector, iterative rejection lowers pass rate by 13.3 points relative to one-shot in both source settings.}
+    \label{fig:pass_rates}
+\end{figure*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/auc_vs_human.png}
+    \caption{AUC versus human references in the fresh setting. One-shot has lower AUC than iterative for both detectors, indicating weaker detector separation under one-shot rewriting.}
+    \label{fig:auc_human}
+\end{figure*}
+
+\subsection{Statistical Tests}
+\tabref{tab:paired_tests} shows that the strongest effect is stylometric detection on external text: mean difference +0.0660, 95\% CI [0.0241, 0.1088], Cohen's $d=0.756$, FDR-adjusted $p=0.0440$. The fresh stylometric comparison is nominally significant before correction ($p=0.0414$) but not after FDR adjustment ($p=0.0828$). Both word-detector comparisons are small and non-significant.
+
+\subsection{Baseline Comparisons and Trajectory}
+For fresh generations, \oneshot improves over baseline on both detectors (word: 0.6288 $\rightarrow$ 0.5835; stylometric: 0.5902 $\rightarrow$ 0.5296). Iterative rewrites partially reverse that gain. For external texts, both rewrite protocols increase AI probability relative to original external text, with larger degradation for \iterative on the stylometric detector (0.5085 versus 0.4425).
+
+Trajectory analysis shows non-monotonic behavior: some early rounds briefly reduce score, but later rounds often drift upward. This pattern suggests that repeated rejection can push style toward regularized prose features captured by stylometric detection.

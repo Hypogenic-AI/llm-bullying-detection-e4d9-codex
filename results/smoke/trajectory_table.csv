@@ -1,0 +1,9 @@
+source_type,detector,round,mean_ai_prob,std_ai_prob
+fresh_model_generation,word_ai_prob,1,0.5174913237196309,0.1097319759022284
+fresh_model_generation,word_ai_prob,2,0.5350048589528537,0.11622202683751184
+fresh_model_generation,stylometric_ai_prob,1,0.549687489760341,0.1040501081056802
+fresh_model_generation,stylometric_ai_prob,2,0.5678955126384723,0.13319917342287987
+external_ai_text,word_ai_prob,1,0.572329730466009,0.029986541353218907
+external_ai_text,word_ai_prob,2,0.6268820373812988,0.07987850959621744
+external_ai_text,stylometric_ai_prob,1,0.4782741704247833,0.05032945713504653
+external_ai_text,stylometric_ai_prob,2,0.6088850009460275,0.08336985621234051

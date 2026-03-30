@@ -1,0 +1,35 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\para{Design overview.} We use a paired design where each source item is rewritten by two protocols under the same generator and decoding settings. The independent variable is rewrite protocol: \oneshot (single rewrite request) versus \iterative (four rejection rounds with ``Rejected: still too AI-sounding'' context). The primary dependent variable is detector AI probability.
+
+\subsection{Data and Sampling}
+We use three datasets. First, \hcthree provides prompts and matched human references for the fresh-generation condition. We sample 15 prompts with seed 42 and generate fresh baseline answers through \gptmini. Second, \ghostbuster provides externally generated AI news-style texts; after filtering to length $>300$ characters, we sample 15 items for out-of-context rewriting. Third, \aitextpile provides 6{,}000 balanced human/AI texts used to train local detectors (80/20 stratified split).
+
+Data quality checks from the run include 23{,}492 loaded \hcthree rows with no missing question/human fields, 5{,}998 filtered external rows, no duplicate texts in sampled pools, and no score outliers at $|z|>3$.
+
+\subsection{Generation and Rewrite Protocols}
+All generations use \gptmini with temperature 0.7. Fresh baseline answers are capped at 220 tokens. For each baseline (or external source text), we produce:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item \oneshot: one instruction to rewrite the text to sound less AI-generated.
+    \item \iterative: four rounds of rejection feedback, where each round receives the prior attempt plus rejection context and asks for another rewrite.
+\end{itemize}
+
+\subsection{Detectors and Metrics}
+We train two logistic-regression detectors:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item \worddet: TF-IDF word 1--2 grams, holdout AUC 0.9239.
+    \item \styledet: TF-IDF char\_wb 3--5 grams, holdout AUC 0.9538.
+\end{itemize}
+
+Evaluation metrics are (i) detector probability, (ii) pass rate under threshold 0.5, and (iii) AUC against \hcthree human references in the fresh setting.
+
+\subsection{Statistical Analysis}
+For each detector-source pair, we compute paired differences
+\[
+\Delta_i = s^{\text{iterative}}_i - s^{\text{one-shot}}_i,
+\]
+where positive $\Delta_i$ means iterative is more AI-like and therefore worse for evasion. We report paired $t$-tests, Wilcoxon signed-rank tests, Cohen's $d$ (paired), Cliff's delta, and 95\% bootstrap confidence intervals (10{,}000 resamples). We apply Benjamini--Hochberg correction across detector-source comparisons.
+
+\subsection{Implementation Details}
+The run uses Python 3.12.8 with openai 2.30.0, pandas 3.0.1, numpy 2.4.4, scikit-learn 1.8.0, scipy 1.17.1, matplotlib 3.10.8, and seaborn 0.13.2. Execution time is 875.56 seconds. Although two RTX 3090 GPUs were detected, detector computation ran on CPU due to CUDA driver/runtime mismatch.

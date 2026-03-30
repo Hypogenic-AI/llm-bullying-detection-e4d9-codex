@@ -1,0 +1,10 @@
+\section{Related Work}
+\label{sec:related_work}
+
+\para{Paraphrasing and rewrite-based evasion.} A central result in detector robustness research is that paraphrasing can sharply reduce detector recall. Krishna \etal show that strong paraphrasing can collapse detector performance, while retrieval-based provenance signals remain more stable \cite{krishna2023paraphrasing}. Subsequent work studies prompt-guided rewriting and adversarial text humanization as practical attacks \cite{lu2024guided,zhou2024humanizing}. Our work focuses on a narrower and common interaction primitive: rejection-loop rewriting, isolated against a one-shot rewrite baseline.
+
+\para{Prompt-guided and iterative attacks.} Lu \etal propose in-context strategies that actively steer generation toward detector evasion \cite{lu2024guided}. Other studies analyze adversarial perturbation loops in white-box and black-box detector settings \cite{zhou2024humanizing}. These papers motivate iterative protocols, but they usually optimize richer attack objectives than conversational rejection phrasing alone. We therefore test whether repeated ``too AI-sounding'' feedback, without explicit detector-aware optimization, is sufficient to create an advantage.
+
+\para{Limits of detector generalization.} Benchmark work highlights instability across domains, generators, and detector architectures \cite{mitchell2023detect,si2023possibilities,hu2024robust}. This motivates our two-detector design and our external-text transfer setting. We also report decision-level outcomes (pass rate) and ranking behavior (AUC versus human references), because a single scalar score can hide practical failure modes.
+
+\para{Positioning.} Unlike prior studies that mainly ask whether rewriting can evade detectors at all, we compare two realistic user workflows under matched sources and model settings. The question is not whether evasion exists; it is whether iterative rejection provides incremental benefit over one-shot prompting. In our run, it does not.

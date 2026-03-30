@@ -1,0 +1,12 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\para{Interpretation.} Our hypothesis predicted that iterative rejection would discover a lower-detectability generation regime than one-shot rewriting. The observed pattern is the opposite: iterative outputs are slightly to moderately more AI-like, especially under stylometric detection. A plausible mechanism is style regularization. Repeated rejection appears to produce polished, consistent prose, which may align with features that character-level detectors associate with machine generation.
+
+\para{Why external text degrades more.} The largest negative effect appears for external long-form text on \styledet. External documents are substantially compressed by rewriting (mean length 527.3 words in originals versus 184.2 and 187.2 in rewritten versions). This compression can remove noisy variation and increase stylometric regularity, confounding ``humanization'' intent with detector-visible simplification.
+
+\para{Relationship to prior claims.} Prior work correctly shows that rewriting can evade detectors in many setups \cite{krishna2023paraphrasing,lu2024guided,zhou2024humanizing}. Our result refines, rather than contradicts, that literature: conversational rejection loops are not automatically stronger than one-shot prompting. Effect direction depends on the detector family and rewrite dynamics.
+
+\para{Limitations.} This study uses a small paired sample (15 fresh + 15 external), one generator model, one temperature, and local surrogate detectors rather than commercial APIs. We ran one full seed. These constraints limit external validity and motivate multi-seed replication.
+
+\para{Broader implications.} For practitioners, the key point is operational: interaction design matters, but more turns do not guarantee better evasion. For safety and policy discussions, robustness claims should be phrased conditionally and validated across detector architectures, source domains, and rewrite protocols.

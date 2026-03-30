@@ -1,0 +1,11 @@
+detector,condition,auc_vs_human,n_ai,n_human
+word_ai_prob,baseline,0.7777777777777778,3,3
+word_ai_prob,one_shot,0.4444444444444444,3,3
+word_ai_prob,iterative_final,0.5555555555555556,3,3
+word_ai_prob,iter_round_1,0.6666666666666667,3,3
+word_ai_prob,iter_round_2,0.5555555555555556,3,3
+stylometric_ai_prob,baseline,1.0,3,3
+stylometric_ai_prob,one_shot,1.0,3,3
+stylometric_ai_prob,iterative_final,1.0,3,3
+stylometric_ai_prob,iter_round_1,1.0,3,3
+stylometric_ai_prob,iter_round_2,1.0,3,3

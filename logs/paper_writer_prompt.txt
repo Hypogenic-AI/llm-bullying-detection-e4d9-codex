@@ -1,0 +1,767 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .codex/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# REPORT
+
+## 1. Executive Summary
+This study tested whether iterative rejection feedback (repeatedly saying a draft is &#34;too AI-sounding&#34;) reduces detector scores more than a one-shot request to &#34;sound less like AI.&#34; We used real API calls to `gpt-4.1-mini`, two local detectors, and controlled paired comparisons on the same source texts.
+
+Key finding: in this run, iterative rejection did **not** outperform one-shot rewriting. Across both detectors and both source settings, iterative-final scores were slightly or moderately **higher** (more AI-like) than one-shot, and pass rates were unchanged or worse.
+
+Practical implication: conversational rejection loops are not automatically a stronger evasion strategy than a single rewrite instruction; effect direction depends on detector family and setup, so claims of consistent iterative advantage should be treated as conditional, not universal.
+
+## 2. Goal
+### Hypothesis tested
+Iterative rejection of LLM outputs as &#34;too AI-sounding&#34; leads to text that passes AI detectors better than a single &#34;sound less like AI&#34; instruction.
+
+### Why it matters
+AI-text detectors are used for moderation and academic integrity. If simple interaction patterns systematically evade them, deployment risk is higher than many users assume.
+
+### Problem solved
+This experiment isolates interaction protocol (one-shot vs iterative rejection) while holding source text and model constant, including a condition with externally sourced AI text not generated in-session.
+
+### Expected impact
+Provides evidence on whether iterative rejection is a generally stronger detector-evasion tactic or a detector/model-specific artifact.
+
+## 3. Data Construction
+### Dataset Description
+- `datasets/hc3_raw/all.jsonl` (HC3): human vs ChatGPT QA corpus, used to sample questions and matched human references.
+- `datasets/ghostbuster_reuter/data/train-00000-of-00001.parquet`: externally generated AI news-style texts, used for out-of-context rewrite condition.
+- `datasets/ai_text_detection_pile/data/*.parquet`: large human/AI corpus used to train two independent local detectors.
+
+Run-time sampled sizes:
+- Fresh-generation condition: 15 prompts from HC3.
+- External-text condition: 15 generated texts from Ghostbuster Reuters.
+- Detector training set: 6,000 texts (balanced), split 80/20 into train/test.
+
+### Example Samples
+| Source | Label/Role | Example (truncated) |
+|---|---|---|
+| HC3 question | Prompt | &#34;On a donation site ... what keeps people from taking the donation money and running?&#34; |
+| Fresh baseline output | AI-generated | &#34;Imagine you have a lemonade stand...&#34; |
+| External source text | AI-generated (dataset field `generated=True`) | &#34;Dominion Resources holds initial talks with East Midlands Electricity...&#34; |
+
+### Data Quality
+From `results/metrics.json`:
+- HC3 rows loaded: 23,492
+- HC3 missing question: 0 (0.00%)
+- HC3 missing human text: 0 (0.00%)
+- HC3 duplicate questions: 0
+- External rows after filtering: 5,998
+- External duplicate text: 0
+- Outliers in detector scores (|z|&gt;3): 0 for both detectors
+
+### Preprocessing Steps
+1. Normalize whitespace and strip text.
+2. Filter external texts to length &gt;300 chars before sampling.
+3. Sample with fixed seed (42).
+4. Generate fresh AI answers from prompts using OpenAI API.
+5. Produce one-shot rewrite and 4-round iterative rejection rewrites.
+6. Score all texts with two detectors.
+7. Compute paired statistics and bootstrap CIs.
+
+### Train/Val/Test Splits
+- Detector datasets: stratified 80/20 train/test split on human vs AI labels.
+- Experimental comparisons: paired within-item analysis (`iterative_final` vs `one_shot`) on the same item IDs.
+
+## 4. Experiment Description
+### Methodology
+#### High-Level Approach
+A controlled paired design with two source settings:
+1. Fresh model generations from HC3 prompts.
+2. External AI text not generated in the current session.
+
+Each item receives:
+- `one_shot`: one rewrite request to sound less AI-like.
+- `iterative`: 4 rounds with repeated rejection context: &#34;Rejected: still too AI-sounding. Rewrite again...&#34;
+
+#### Why this method
+This directly targets the user claim about rejection context and tests transfer to externally sourced text.
+
+### Implementation Details
+#### Tools and Libraries
+- Python 3.12.8
+- openai 2.30.0
+- pandas 3.0.1
+- numpy 2.4.4
+- scikit-learn 1.8.0
+- scipy 1.17.1
+- matplotlib 3.10.8
+- seaborn 0.13.2
+
+#### Algorithms/Models
+- Generator: OpenAI `gpt-4.1-mini`
+- Detector A (`word_ai_prob`): TF-IDF word 1-2gram + Logistic Regression
+- Detector B (`stylometric_ai_prob`): TF-IDF char_wb 3-5gram + Logistic Regression
+
+Detector holdout AUCs:
+- Word detector: 0.9239
+- Stylometric detector: 0.9538
+
+#### Hyperparameters
+| Parameter | Value | Selection Method |
+|---|---:|---|
+| seed | 42 | fixed for reproducibility |
+| n_fresh_items | 15 | runtime-constrained planned sample |
+| n_external_items | 15 | runtime-constrained planned sample |
+| iterative_rounds | 4 | planned ablation depth |
+| temperature | 0.7 | fixed generation setting |
+| max_tokens_answer | 220 | fixed cap |
+| detector_train_size | 6000 | balanced subsample |
+
+#### Training / Analysis Pipeline
+1. Sample prompts and external texts.
+2. Generate baseline fresh outputs.
+3. Create one-shot and iterative rewrites.
+4. Fit two detectors on AI Text Detection Pile subsamples.
+5. Score all experimental texts.
+6. Compute paired t-test, Wilcoxon, Cohen&#39;s d, Cliff&#39;s delta, bootstrap 95% CI.
+7. Apply Benjamini-Hochberg correction.
+
+### Experimental Protocol
+#### Reproducibility Information
+- Number of runs: 1 full run (plus smoke validation run)
+- Seed: 42
+- Hardware detected: 2x NVIDIA RTX 3090 (24GB each)
+- Torch CUDA usable in this env: No (driver/runtime mismatch), so detector computations ran on CPU
+- Execution time: 875.56s (~14.6 min)
+
+#### Evaluation Metrics
+- Detector AI probability (continuous)
+- Pass rate at threshold 0.5
+- AUC vs human references (fresh condition)
+- Paired significance tests and effect sizes
+
+### Raw Results
+#### Main condition summary
+| Source | Condition | Word detector mean | Stylometric detector mean |
+|---|---|---:|---:|
+| Fresh | baseline | 0.6288 | 0.5902 |
+| Fresh | one_shot | 0.5835 | 0.5296 |
+| Fresh | iterative_final | 0.5883 | 0.5644 |
+| External | original_external | 0.4926 | 0.3930 |
+| External | one_shot | 0.5363 | 0.4425 |
+| External | iterative_final | 0.5389 | 0.5085 |
+
+#### Paired hypothesis tests (iterative_final - one_shot)
+| Detector | Source | Mean diff | p (t-test) | p (FDR) | Cohen&#39;s d | 95% CI |
+|---|---|---:|---:|---:|---:|---|
+| word_ai_prob | fresh | +0.0048 | 0.7009 | 0.8645 | +0.101 | [-0.0181, 0.0281] |
+| word_ai_prob | external | +0.0025 | 0.8645 | 0.8645 | +0.045 | [-0.0241, 0.0307] |
+| stylometric_ai_prob | fresh | +0.0348 | 0.0414 | 0.0828 | +0.580 | [0.0063, 0.0645] |
+| stylometric_ai_prob | external | +0.0660 | 0.0110 | 0.0440 | +0.756 | [0.0241, 0.1088] |
+
+#### Output Locations
+- Results JSON/meta: `results/metrics.json`
+- Scored rows: `results/scored_texts.csv`
+- Stats tables: `results/stat_tests.csv`, `results/summary_table.csv`, `results/pass_rates.csv`, `results/auc_table.csv`, `results/trajectory_table.csv`
+- Plots: `results/plots/condition_comparison.png`, `results/plots/iterative_trajectory.png`, `results/plots/auc_vs_human.png`, `results/plots/pass_rates.png`
+
+## 5. Result Analysis
+### Key Findings
+1. Iterative rejection did not beat one-shot on either detector in mean score; all paired mean deltas were positive (worse for evasion).
+2. On stylometric detector, iterative was significantly worse than one-shot for external text after FDR correction (p=0.0440).
+3. Pass-rate changes were neutral or negative: no gain on word detector, and -13.3 percentage points on stylometric in both source conditions.
+4. AUC vs human did not show iterative weakening detection compared to one-shot; one-shot generally had lower AUC than iterative on both detectors.
+
+### Hypothesis Testing Results
+- Null hypothesis (H0): mean paired difference (iterative - one_shot) = 0.
+- Alternative (H1, directional expectation): iterative &lt; one_shot (lower AI score).
+- Observed: iterative &gt; one_shot on average in all tested pairs.
+- Conclusion: hypothesis not supported in this run.
+
+### Comparison to Baselines
+- One-shot improved over baseline for fresh texts on both detectors.
+- Iterative often partially reversed that gain.
+- On external texts, both rewrites increased AI scores relative to original external text, with iterative increasing more on stylometric detector.
+
+### Visualizations
+See:
+- `results/plots/condition_comparison.png`
+- `results/plots/iterative_trajectory.png`
+- `results/plots/auc_vs_human.png`
+- `results/plots/pass_rates.png`
+
+### Surprises and Insights
+- The strongest degradations occurred on external texts under stylometric detection, suggesting iterative loop can push style toward detector-recognized AI patterns.
+- Iteration trajectory was non-monotonic but did not trend toward lower AI probability overall.
+
+### Error Analysis
+Common failure mode observed in sampled outputs:
+- Iterative rounds tended to converge to polished, consistent explanatory style (&#34;clean prose&#34;), which correlates with higher stylometric AI scores.
+- External long-form texts were substantially shortened by rewrite prompts (length compression), which may alter detector behavior independently of human-likeness.
+
+### Limitations
+- Small experimental sample size (15 + 15 items).
+- No commercial detector API (e.g., Pangram) was available in this environment; detectors are local surrogates.
+- Single generator model (`gpt-4.1-mini`) and single temperature.
+- Rewrite token cap (220) compressed long external documents.
+- One full run only; no multi-seed replication yet.
+
+## 6. Conclusions
+### Summary
+Under this controlled run, iterative rejection context did not outperform a one-shot &#34;less AI-sounding&#34; instruction; instead, it slightly to moderately increased detector AI scores. The hypothesis that rejection-loop context inherently shifts generation into a more detector-evasive regime is not supported here.
+
+### Implications
+- Practical: users and evaluators should not assume iterative rejection loops are universally stronger evasion tactics.
+- Theoretical: interaction context effects appear detector- and setup-dependent; mechanism claims require broader model/detector triangulation.
+
+### Confidence in Findings
+Moderate confidence for this specific setup (clear paired design, two detectors, significant negative effect on one detector/source pair). Broader confidence is limited by sample size, detector choice, and single-model scope.
+
+## 7. Next Steps
+### Immediate Follow-ups
+1. Replicate with multiple seeds and larger sample size (&gt;=100 paired items per source).
+2. Add at least one external commercial detector API to test transfer beyond local classifiers.
+3. Add matched-length controls to isolate style shift vs compression artifacts.
+
+### Alternative Approaches
+- Compare iterative rejection against explicit feature-targeted prompts (sentence length variability, discourse markers, hedging).
+- Evaluate with additional model families (Claude, Gemini, open-weight models).
+
+### Broader Extensions
+- Run same protocol on domain-specific genres (student essays, support emails, legal text).
+- Study whether iterative rejection improves human preference while harming detector evasion (or vice versa).
+
+### Open Questions
+- Which linguistic features are amplified by rejection loops in failing cases?
+- Does iterative rejection help only for some model families or detector architectures?
+- Is there an optimal number of rounds before style collapses into a detectable pattern?
+
+## References
+1. Krishna et al. (2023). *Paraphrasing evades detectors of AI-generated text, but retrieval is an effective defense*.
+2. Lu et al. (2024). *Large Language Models can be Guided to Evade AI-Generated Text Detection*.
+3. Zhou et al. (2024). *Humanizing Machine-Generated Content: Evading AI-Text Detection through Adversarial Attack*.
+4. Relevant resource index and PDFs in `literature_review.md`, `resources.md`, and `papers/`.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Research Plan: Iterative Rejection for AI-Text Detector Evasion
+
+## Motivation &amp; Novelty Assessment
+
+### Why This Research Matters
+AI-text detectors are increasingly used in education, moderation, and fraud screening, so understanding practical evasion dynamics is directly relevant to policy and product reliability. If a simple interaction pattern (iterative rejection as &#34;too AI-sounding&#34;) reliably reduces detector sensitivity, current detector deployments may overestimate robustness and create false confidence for downstream decision makers.
+
+### Gap in Existing Work
+The reviewed literature shows that paraphrasing and adversarial rewriting can reduce detection rates, but most studies do not isolate rejection-context phrasing itself as the independent variable. Existing work often mixes prompt engineering, paraphrasers, and detector-aware optimization, leaving an open causal question: whether iterative rejection unlocks controllable anti-detector features beyond one-shot instructions.
+
+### Our Novel Contribution
+We directly compare one-shot de-AI instruction versus multi-turn rejection-context rewriting under matched source texts, model, and token budgets. We also test whether gains persist on text not generated in the immediate conversation context, and evaluate transfer across two detector families to distinguish detector overfitting from broader regime shift.
+
+### Experiment Justification
+- Experiment 1: One-shot vs iterative rejection on model-generated answers. Why needed: establishes the core effect under controlled generation.
+- Experiment 2: Apply both rewriting protocols to externally sourced AI text (from dataset, not this session). Why needed: tests the claim that iterative rejection still works on out-of-context text.
+- Experiment 3: Round-by-round trajectory analysis (iteration 1..N). Why needed: determines whether improvements are monotonic and identifies convergence behavior.
+- Experiment 4: Cross-detector transfer (pretrained detector + independent detector). Why needed: tests whether effects are detector-specific or general.
+
+## Research Question
+Does iterative rejection of outputs as &#34;too AI-sounding&#34; produce lower AI-detection scores and higher detector pass rates than a single instruction to &#34;sound less like AI,&#34; and if so, is the gain consistent with feature steering vs broader generation-regime shift?
+
+## Background and Motivation
+Prior work (Krishna et al., Lu et al., Zhou et al.) demonstrates detector fragility under paraphrase-style attacks. However, practical user workflows often involve conversational rejection loops rather than explicit adversarial optimization. This project tests that interaction-level mechanism directly using real LLM API outputs and controlled detector evaluation.
+
+## Hypothesis Decomposition
+- H1 (Primary): Iterative rejection lowers detector AI probability more than one-shot rewriting.
+- H2 (Robustness): Iterative rejection yields higher detector pass rate (below threshold) than one-shot across detectors.
+- H3 (Context transfer): The iterative advantage persists on externally sourced AI texts not generated in current dialogue.
+- H4 (Mechanism proxy): Improvement from round 1 to later rounds shows a nonlinear trajectory suggestive of regime shift rather than simple linear style polishing.
+
+Independent variables:
+- Rewrite condition: `one_shot`, `iterative_round_k`.
+- Text source: `fresh_model_generation`, `external_ai_text`.
+- Detector: `roberta_detector`, `stylometric_detector`.
+
+Dependent variables:
+- Detector AI score (continuous probability).
+- Binary pass indicator under preset thresholds.
+- Relative score reduction from baseline.
+
+## Proposed Methodology
+
+### Approach
+Use a controlled within-item design. For each source text, generate both treatment outputs with the same model and fixed decoding parameters. Evaluate all outputs on two independent detectors and perform paired statistical tests.
+
+### Experimental Steps
+1. Sample prompts and source texts from local datasets (HC3 + AI-text corpora) with fixed random seed.  
+   Rationale: reproducible, diverse input topics.
+2. Generate baseline model outputs with real API calls (single model, fixed temperature/top_p).  
+   Rationale: ensures realistic LLM behavior under deployment-like settings.
+3. Apply one-shot rewriting prompt to each baseline output.  
+   Rationale: strong practical baseline matching user intent.
+4. Apply iterative rejection protocol (N rounds, repeated &#34;too AI-sounding&#34; feedback).  
+   Rationale: treatment under test.
+5. Evaluate all variants with two detectors and compute paired deltas, pass rates, and AUC where labels available.  
+   Rationale: measure both score-level and decision-level impact with transfer checks.
+6. Run hypothesis tests (paired t-test + Wilcoxon robustness, bootstrap CI, effect size).  
+   Rationale: robust inference under potential non-normality.
+7. Perform failure analysis on cases where iterative fails or degrades quality.  
+   Rationale: constrain claims and identify edge conditions.
+
+### Baselines
+- Baseline A: Original model-generated text (no rewrite).
+- Baseline B: One-shot &#34;sound less AI-generated&#34; rewrite.
+- Comparison condition: Iterative rejection (up to 4 rounds; analyze each round and final).
+
+### Evaluation Metrics
+- Primary: Mean detector score delta (`final - baseline`) and pass rate improvement.
+- Secondary: AUC by condition on labeled subsets, TPR@target FPR when supported.
+- Mechanism proxy: marginal gain by round (`r1→r2`, `r2→r3`, `r3→r4`).
+- Quality guardrails: length ratio and lexical diversity changes (to ensure non-trivial rewrites).
+
+### Statistical Analysis Plan
+- Significance level: alpha = 0.05.
+- Primary paired comparison: iterative-final vs one-shot score per item.
+- Tests: paired t-test (if approximately normal), Wilcoxon signed-rank as non-parametric confirmatory test.
+- Effect size: Cohen&#39;s d for paired differences and Cliff&#39;s delta robustness.
+- Confidence intervals: 95% bootstrap CI (10,000 resamples).
+- Multiple comparisons correction: Benjamini-Hochberg FDR across detector/source combinations.
+
+## Expected Outcomes
+Support for hypothesis:
+- Iterative-final has significantly lower detector scores than one-shot on both detectors.
+- Pass-rate uplift is positive and statistically significant.
+- Similar effect appears on external text condition.
+
+Refutation patterns:
+- No significant difference or one-shot outperforms iterative.
+- Effects collapse on second detector (indicating detector-specific overfit).
+
+## Timeline and Milestones
+- Milestone 1 (Planning, 20-30 min): finalize design and preregister tests.
+- Milestone 2 (Setup + EDA, 20-30 min): environment, data checks, sample construction.
+- Milestone 3 (Implementation, 45-70 min): scripts for API generation, detection, analysis.
+- Milestone 4 (Experiments, 45-70 min): run main conditions and store raw outputs.
+- Milestone 5 (Analysis + report, 40-60 min): stats, plots, REPORT.md + README.md.
+- Buffer (25%): debugging/API retries and reruns.
+
+## Potential Challenges
+- API limits or transient failures: implement retries and checkpointing per item.
+- Detector mismatch/domain shift: evaluate across two detectors and report disagreement.
+- Cost/time: use staged sample size (pilot n=30, then n=120 if stable).
+- Semantic drift during rewriting: enforce concise rewrite instructions and check quality proxies.
+
+## Success Criteria
+- Completed experiments with real model API calls across all conditions.
+- Reproducible scripts and saved raw/aggregated outputs in `results/`.
+- Statistically grounded comparison with effect sizes and confidence intervals.
+- Clear conclusion on whether iterative rejection materially outperforms one-shot.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+## Literature Review
+
+### Research Area Overview
+The current literature on AI-generated text detection shows a repeated pattern: style-level detectors are vulnerable to rewriting/paraphrasing attacks, while provenance-style methods (watermarking, retrieval against generation logs) are more robust but require infrastructure support. This directly aligns with the hypothesis that iterative rejection prompts (&#34;too AI-sounding&#34;) can move model outputs into a lower-detectability regime more effectively than single-shot style edits.
+
+### Search Keywords Used
+- AI-generated text detection
+- adversarial attacks against AI text detectors
+- paraphrasing evade detector
+- watermarking large language models
+- humanizing machine-generated text
+- prompt-based evasion of LLM detectors
+- contrastive paraphrase attacks
+- robust AI-text detection adversarial learning
+
+### Key Papers
+
+#### Paper 1: Paraphrasing evades detectors of AI-generated text, but retrieval is an effective defense
+- **Authors**: Kalpesh Krishna, Yixiao Song, Marzena Karpinska, John Wieting, Mohit Iyyer
+- **Year**: 2023
+- **Source**: NeurIPS 2023 / arXiv:2303.13408
+- **Key Contribution**: Shows paraphrasing can dramatically break popular detectors; proposes retrieval-based defense.
+- **Methodology**: Uses 11B DIPPER paraphraser with controllable lexical/order diversity.
+- **Datasets Used**: Long-form QA and open-generation settings; retrieval corpora up to 15M generations.
+- **Baselines**: DetectGPT, GPTZero, OpenAI classifier, watermark detection, RankGen.
+- **Evaluation Metrics**: ROC/AUC, TPR at fixed FPR (notably 1% FPR), semantic similarity preservation.
+- **Results**: Example from paper: DetectGPT detection can drop from 70.3% to 4.6% at 1% FPR after paraphrasing.
+- **Code Available**: Yes (`code/ai-detection-paraphrases`).
+- **Relevance to Our Research**: Strong direct support that rewriting loops can exploit detector weaknesses.
+
+#### Paper 2: Large Language Models can be Guided to Evade AI-Generated Text Detection
+- **Authors**: Ning Lu et al.
+- **Year**: 2023 (published TMLR 2024)
+- **Source**: TMLR
+- **Key Contribution**: Introduces SICO, prompt-construction method for detector evasion without external paraphraser.
+- **Methodology**: In-context example optimization and feature-guided prompts; proxy-detector feedback loop.
+- **Datasets Used**: HC3-style and task-oriented setups (writing, QA, reviews; includes SQuAD/Eli5/Yelp-derived tasks).
+- **Baselines**: Parrot, DIPPER, GPT-Para, Human Prompt.
+- **Evaluation Metrics**: Detector AUC across GPT3-D/GPT2-D/DetectGPT/OpenAI/GPTZero/Log-Rank.
+- **Results**: Reported large AUC reductions (e.g., on writing task from high baseline AUC to ~0.2-0.3 under SICO variants).
+- **Code Available**: Paper code not directly gathered; method is reproducible from paper details.
+- **Relevance to Our Research**: Closest conceptual precedent for &#34;iterative feedback context shifts generation regime&#34;.
+
+#### Paper 3: Humanizing Machine-Generated Content: Evading AI-Text Detection through Adversarial Attack
+- **Authors**: Ying Zhou, Ben He, Le Sun
+- **Year**: 2024
+- **Source**: arXiv:2404.01907
+- **Key Contribution**: Adversarial framework (white-box and black-box) for minor perturbation attacks on detectors.
+- **Methodology**: Dynamic attacker-detector optimization; constrained perturbation modules.
+- **Datasets Used**: CheckGPT, HC3.
+- **Baselines**: Word-level, sentence-level, full-text rewriting, DIPPER-based attacks.
+- **Evaluation Metrics**: AUC and text-quality constraints (e.g., readability/perplexity change).
+- **Results**: Detectors can be compromised quickly in dynamic attack settings; robustness remains limited.
+- **Code Available**: Not directly acquired in this pass.
+- **Relevance to Our Research**: Supports iterative attack dynamics and detector adaptation failure modes.
+
+#### Paper 4: Can AI-Generated Text be Reliably Detected?
+- **Authors**: (see PDF metadata)
+- **Year**: 2023
+- **Source**: arXiv:2303.11156
+- **Key Contribution**: Benchmarks reliability limitations for AI-text detection.
+- **Methodology**: Comparative detector evaluation across data and model settings.
+- **Datasets Used**: Mixed detection benchmarks.
+- **Baselines**: Multiple detector families.
+- **Evaluation Metrics**: ROC/AUC, transfer behavior.
+- **Relevance to Our Research**: Provides foundational assumptions and detector fragility context.
+
+#### Paper 5: On the Possibilities of AI-Generated Text Detection
+- **Authors**: (see PDF metadata)
+- **Year**: 2023
+- **Source**: arXiv:2304.04736
+- **Key Contribution**: Discusses theoretical/empirical limits of detector generalization.
+- **Relevance to Our Research**: Motivates strict train/test separation by generator and prompt strategy.
+
+#### Paper 6: RADAR: Robust AI-Text Detection via Adversarial Learning
+- **Authors**: (see PDF metadata)
+- **Year**: 2023
+- **Source**: arXiv:2307.03838
+- **Key Contribution**: Adversarially trained detector to improve perturbation robustness.
+- **Relevance to Our Research**: Candidate robust baseline detector in our experiments.
+
+#### Paper 7: Provable Robust Watermarking for AI-Generated Text
+- **Authors**: (see PDF metadata)
+- **Year**: 2023
+- **Source**: arXiv:2306.17439
+- **Key Contribution**: Provable properties for watermark-based provenance methods.
+- **Relevance to Our Research**: Non-style baseline less sensitive to textual &#34;humanization&#34; edits.
+
+#### Paper 8: Are AI-Generated Text Detectors Robust to Adversarial Perturbations?
+- **Authors**: (see PDF metadata)
+- **Year**: 2024
+- **Source**: arXiv:2406.01179
+- **Key Contribution**: Focused robustness stress-test under adversarial perturbations.
+- **Relevance to Our Research**: Reinforces evaluation under iterative attack loops rather than static prompts.
+
+### Additional Relevant Papers Downloaded
+- Your Language Model Can Secretly Write Like Humans: Contrastive Paraphrase Attacks on LLM-Generated Text Detectors (2025)
+- BiMarker: Enhancing Text Watermark Detection for Large Language Models with Bipolar Watermarks (2025)
+- Hidding the Ghostwriters: An Adversarial Evaluation of AI-Generated Student Essay Detection (2023/2024 variants)
+
+### Common Methodologies
+- Prompt-only evasion: feature-guided in-context prompting (SICO-like).
+- Paraphrase/rewrite evasion: neural paraphrasers (DIPPER-like), back-translation, seq2seq rewriting.
+- Detector robustness: adversarial training, contrastive training, domain transfer tests.
+- Provenance methods: statistical watermark detection and retrieval over generation logs.
+
+### Standard Baselines
+- **Detector baselines**: DetectGPT, GPT2/Roberta classifiers, GPTZero-like systems, OpenAI detector (historical), log-rank/perplexity detectors.
+- **Attack baselines**: single-shot paraphrase, word substitution, sentence replacement, back translation, prompted rewriting.
+- **Defense baselines**: watermark detection, retrieval matching (BM25/semantic retrieval), adversarially trained classifiers.
+
+### Evaluation Metrics
+- **Primary**: ROC-AUC and TPR at low FPR (especially 1% FPR).
+- **Secondary**: Accuracy/F1 (less informative under class imbalance and threshold sensitivity).
+- **Attack quality controls**: semantic similarity, readability scores, perplexity shift.
+- **Transfer stress tests**: train detector on one generator family, test on others.
+
+### Datasets in the Literature
+- **HC3**: Human vs ChatGPT QA corpus; used in several detector studies.
+- **CheckGPT**: Human/AI content for detector benchmarking.
+- **Task-conditioned corpora**: SQuAD/Eli5/Yelp-derived generation tasks for writing/QA/reviews.
+- **Large synthetic mixes**: Pile-derived human/AI corpora for classifier scaling.
+
+### Gaps and Opportunities
+- Gap 1: Few papers directly isolate *iterative rejection language* as the treatment variable.
+- Gap 2: Limited causal evidence on whether evasion comes from feature discovery vs decoding-regime shifts.
+- Gap 3: Many evaluations lack strict semantic-equivalence constraints for attack outputs.
+- Gap 4: Detector benchmarking often under-reports robustness under repeated interaction loops.
+
+### Recommendations for Our Experiment
+- **Recommended datasets**:
+  - `datasets/hc3_raw` for human-vs-AI QA comparisons.
+  - `datasets/ai_text_detection_pile` for scalable detector training/evaluation.
+  - `datasets/ghostbuster_reuter` for domain/attribution stress tests.
+- **Recommended baselines**:
+  - Single-shot style prompt baseline: &#34;rewrite to sound less AI-generated&#34;.
+  - Iterative rejection loops: N-turn rejection protocol with fixed budget.
+  - External paraphrase baseline (DIPPER-style or equivalent) where feasible.
+  - Detector baselines: DetectGPT-style, fine-tuned classifier, watermark/retrieval methods.
+- **Recommended metrics**:
+  - Primary: AUC and TPR@1%FPR.
+  - Secondary: semantic similarity and quality deltas.
+- **Methodological considerations**:
+  - Keep identical source texts across one-shot vs iterative conditions.
+  - Control for token budget, number of rewrites, and model temperature.
+  - Evaluate cross-detector transfer (avoid overfitting to one detector).
+  - Include semantic-preservation threshold before counting successful evasion.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: Ari Holtzman and NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{Ari Holtzman and NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .codex/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.
