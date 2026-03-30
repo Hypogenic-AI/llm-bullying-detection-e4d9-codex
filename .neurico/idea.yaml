@@ -1,0 +1,31 @@
+idea:
+  title: LLM Bullying
+  domain: nlp
+  hypothesis: 'Iterative rejection of LLM outputs as "too AI-sounding" leads to text
+    that passes AI detectors more effectively than a single instruction to "sound
+    less like AI." This may be due to the model accessing relevant features only when
+    prompted through rejection context, or because the rejection context shifts the
+    model into a different generation regime.
+
+    '
+  background:
+    description: 'If you repeatedly reject Claude''s output as "too AI-sounding,"
+      the text starts passing AI detectors like Pangram after a few rounds. This works
+      even when the rejected text wasn''t generated in the current conversation. The
+      open question is why iterative rejection works so much better than just asking
+      the model to "sound less like AI" in a single shot. One possibility is that
+      the model has access to the relevant features but a simple instruction doesn''t
+      activate the right steering. Another is that something about the rejection context
+      itself is doing the work: the model isn''t getting better at suppressing AI
+      features, it''s shifting into a different generation regime entirely.
+
+      '
+  metadata:
+    author: Ari Holtzman
+    source: IdeaHub
+    source_url: https://hypogenic.ai/ideahub/idea/48TRJ2Yy5Yab0afEDIhr
+    idea_id: llm_bullying_20260330_043127_234eb0be
+    created_at: '2026-03-30T04:31:27.496722'
+    status: submitted
+    github_repo_name: llm-bullying-detection-e4d9-codex
+    github_repo_url: https://github.com/Hypogenic-AI/llm-bullying-detection-e4d9-codex
